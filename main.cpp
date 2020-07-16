@@ -13,7 +13,7 @@
 #include <string>
 #include <fstream>
 
-// #include <SOIL.h>
+#include <SOIL2.h>
 
 // Using tutorial at https://www.youtube.com/watch?v=iYZA1k8IKgM&list=PL6xSOsbVA1eYSZTKBxnoXYboy7wc4yg-Z&index=9
 
@@ -31,7 +31,7 @@ Vertex vertices[] =
     glm::vec3(-0.5f, -0.5f, 0.f),    glm::vec3(0.f, 1.f, 0.f),     glm::vec2(0.f, 0.f),
     glm::vec3(0.5f, -0.5f, 0.f),     glm::vec3(0.f, 0.f, 1.f),     glm::vec2(1.f, 0.f),
 
-    glm::vec3(0.5f, 0.5f, 0.f),    glm::vec3(1.f, 1.f, 0.f),     glm::vec2(0.f, 0.f)
+    glm::vec3(0.5f, 0.5f, 0.f),    glm::vec3(1.f, 1.f, 0.f),     glm::vec2(1.f, 1.f)
 };
 
 // Is used to reuse vertices for defining different triangles
@@ -144,6 +144,7 @@ bool loadShaders(GLuint &program)
     if (!success) 
     {
         glGetProgramInfoLog(program, 512, NULL, infoLog);
+        std::cout << infoLog;
         std::cout << "ERROR::LOADSHADERS::COULD_NOT_LINK_PROGRAM" << "\n";
         loadSuccess = false; 
 
@@ -242,6 +243,64 @@ int main()
     // BIND VAO 0
     glBindVertexArray(0); // compiles above codes
 
+    // TEXTURE 0
+    // Init texture
+    int image_width = 0;
+    int image_height = 0;
+    unsigned char* image = SOIL_load_image("../Images/pusheen.png", &image_width, &image_height, NULL, SOIL_LOAD_RGBA); // load in image
+
+    GLuint texture0;
+    glGenTextures(1, &texture0); //texture 0 links to index 1 
+    glBindTexture(GL_TEXTURE_2D, texture0);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // S = x, T = y (IF we run out of texture along X, repeat)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // S = x, T = y (IF we run out of texture along Y, repeat)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR); // How do we wnat texture to increase in size as we zoom in (linear)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // what happens as we zoom out 
+
+    if (image) // if there is an image in here 
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_width, image_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image); // created an open gl texture 
+        glGenerateMipmap(GL_TEXTURE_2D); // takes your image and stores it in several different resolutions for zooming in and out
+    }
+    else 
+    {
+        std::cout << "ERROR::TEXTURE_LOADING_FAILED" << "\n";
+    }
+    
+    glActiveTexture(0); // there is no active texture unit
+    glBindTexture(GL_TEXTURE_2D, 0); // clear the bound textures 
+    SOIL_free_image_data(image); // removes image data
+
+    // TEXTURE 1
+    // Init texture
+    int image_width1 = 0;
+    int image_height1 = 0;
+    unsigned char* image1 = SOIL_load_image("../Images/micky.png", &image_width1, &image_height1, NULL, SOIL_LOAD_RGBA); // load in image
+
+    GLuint texture1;
+    glGenTextures(1, &texture1); //texture 0 links to index 1 
+    glBindTexture(GL_TEXTURE_2D, texture1);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // S = x, T = y (IF we run out of texture along X, repeat)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // S = x, T = y (IF we run out of texture along Y, repeat)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR); // How do we wnat texture to increase in size as we zoom in (linear)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // what happens as we zoom out 
+
+    if (image1) // if there is an image in here 
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_width1, image_height1, 0, GL_RGBA, GL_UNSIGNED_BYTE, image1); // created an open gl texture 
+        glGenerateMipmap(GL_TEXTURE_2D); // takes your image and stores it in several different resolutions for zooming in and out
+    }
+    else 
+    {
+        std::cout << "ERROR::TEXTURE_LOADING_FAILED" << "\n";
+    }
+    
+    glActiveTexture(0); // there is no active texture unit
+    glBindTexture(GL_TEXTURE_2D, 0); // clear the bound textures 
+    SOIL_free_image_data(image1); // removes image data
+
     // MAIN LOOP
 
     while (!glfwWindowShouldClose(window)) // while the window is not being closed
@@ -261,6 +320,16 @@ int main()
         // use a program
         glUseProgram(core_program);
 
+        // update uniforms (you must bind a program before sending a uniform)
+        glUniform1i(glGetUniformLocation(core_program, "texture0"), 0); // send 1 uniform, bind to texture coordinate 0
+        glUniform1i(glGetUniformLocation(core_program, "texture1"), 1); // send 1 uniform, bind to texture coordinate 1
+
+        //Activate texture
+        glActiveTexture(GL_TEXTURE0); // active the first texture unit
+        glBindTexture(GL_TEXTURE_2D, texture0);
+        glActiveTexture(GL_TEXTURE1); // active the second texture unit
+        glBindTexture(GL_TEXTURE_2D, texture1);
+
         // bind vertex array object (contains links to all other object data in the GPU) 
         glBindVertexArray(VAO);
 
@@ -271,6 +340,11 @@ int main()
         // end draw 
         glfwSwapBuffers(window); // back buffer is being drawn to while front buffer is being shown, this brings the back one to the front
         glFlush(); // ??
+
+        glBindVertexArray(0); // unbind
+        glUseProgram(0); // unbind ( will never be less than 1 )
+        glActiveTexture(0);
+        glBindTexture(GL_TEXTURE_2D, 0);
 
     }
 
