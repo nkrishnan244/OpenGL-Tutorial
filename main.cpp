@@ -15,23 +15,27 @@
 
 #include <SOIL2.h>
 
+#include "shader.h"
+#include "texture.h"
+#include "material.h"
+
+#include "vertex.h"
+#include "primitives.h"
+#include "mesh.h"
+
+#include "game.h"
+
 // Using tutorial at https://www.youtube.com/watch?v=iYZA1k8IKgM&list=PL6xSOsbVA1eYSZTKBxnoXYboy7wc4yg-Z&index=9
 
-struct Vertex
-{
-    glm::vec3 position;
-    glm::vec3 color;
-    glm::vec2 texcoord; 
-};
+Primitive test();
 
 // Position, Color, Texture
 Vertex vertices[] =
 {
-    glm::vec3(-0.5f, 0.5f, 0.f),      glm::vec3(1.f, 0.f, 0.f),     glm::vec2(0.f, 1.f),
-    glm::vec3(-0.5f, -0.5f, 0.f),    glm::vec3(0.f, 1.f, 0.f),     glm::vec2(0.f, 0.f),
-    glm::vec3(0.5f, -0.5f, 0.f),     glm::vec3(0.f, 0.f, 1.f),     glm::vec2(1.f, 0.f),
-
-    glm::vec3(0.5f, 0.5f, 0.f),    glm::vec3(1.f, 1.f, 0.f),     glm::vec2(1.f, 1.f)
+    glm::vec3(-0.5f, 0.5f, 0.f),      glm::vec3(1.f, 0.f, 0.f),     glm::vec2(0.f, 1.f),  glm::vec3(0.f, 0.f, -1.f), 
+    glm::vec3(-0.5f, -0.5f, 0.f),    glm::vec3(0.f, 1.f, 0.f),     glm::vec2(0.f, 0.f),    glm::vec3(0.f, 0.f, -1.f), 
+    glm::vec3(0.5f, -0.5f, 0.f),     glm::vec3(0.f, 0.f, 1.f),     glm::vec2(1.f, 0.f),     glm::vec3(0.f, 0.f, -1.f), 
+    glm::vec3(0.5f, 0.5f, 0.f),    glm::vec3(1.f, 1.f, 0.f),     glm::vec2(1.f, 1.f),        glm::vec3(0.f, 0.f, -1.f) // -1 z direction means pointing towrads us 
 };
 
 // Is used to reuse vertices for defining different triangles
@@ -53,133 +57,68 @@ void updateInput(GLFWwindow* window)
 }
 
 // you need this if you want to resize your windowq
-void framebuffer_resize_callback(GLFWwindow* window, int framebufferWidth, int framebufferHeight) 
+// void framebuffer_resize_callback(GLFWwindow* window, int framebufferWidth, int framebufferHeight) 
+// {
+//     glViewport(0, 0, framebufferWidth, framebufferHeight);
+// }
+
+void updateInput(GLFWwindow* window, Mesh &mesh) 
 {
-    glViewport(0, 0, framebufferWidth, framebufferHeight);
+    if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    {
+        mesh.move(glm::vec3(0.f, 0.f, -0.01f));
+        // position.z -= 0.0001f; 
+    }
+
+    if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    {
+        mesh.move(glm::vec3(0.f, 0.f, 0.01f));
+    }
+
+    if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    {
+        mesh.move(glm::vec3(-0.01f, 0.f, 0.f));
+    }
+
+    if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    {
+        mesh.move(glm::vec3(0.01f, 0.f, 0.f));
+    }
+
+    if(glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+    {
+        mesh.move(glm::vec3(0.f, -0.01f, 0.f));
+    }
+
+    if(glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+    {
+        mesh.move(glm::vec3(0.f, 0.01f, 0.f));
+    }
+
+    if(glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
+    {
+        mesh.scaleUp(glm::vec3(0.01f, 0.01f, 0.01f));
+    }
+
+    if(glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+    {
+         mesh.scaleUp(glm::vec3(-0.01f, -0.01f, -0.01f));
+    }
 }
 
-// need to load and activate shaders for them to be used
-bool loadShaders(GLuint &program)
+GLFWwindow* createWindow(const char* title, const int width, const int height, 
+    int& fbwidth, int& fbHeight, const int GLmajorVer, const int GLminorVer, bool resizable)
 {
-    bool loadSuccess = true; 
-    char infoLog[512]; // information if program can't link or shader can't compile
-    GLint success; 
-
-    std::string temp = "";
-    std::string src = ""; 
-
-    std::ifstream in_file; 
-
-    // load vertex shader 
-    in_file.open("../vertex_core.glsl");
-
-    if (in_file.is_open())
-    {
-        while (std::getline(in_file, temp)) // read next line into temp 
-        {
-            src += temp + "\n"; // add next line to our string src
-        }
-    }
-    else 
-    {
-        std::cout << "ERROR::LOADSHADERS::COULD_NOT_OPEN_VERTEX_FILE" << "\n";
-        loadSuccess = false; 
-    }
-
-    in_file.close();
-
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER); // let's actually create the shader 
-    const GLchar* vertSrc = src.c_str(); // string -> c type string
-    glShaderSource(vertexShader, 1, &vertSrc, NULL); // set the source to the shader
-    glCompileShader(vertexShader); // actually compile the shader 
-
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success); // Error check! (-1 or 1)
-    if (!success) 
-    {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog); // see what happened
-        std::cout << "ERROR::LOADSHADERS::COULD_NOT_COMPILE_VERTEX_SHADER" << "\n";
-        std::cout << infoLog << "\n";
-        loadSuccess = false; 
-    }
-
-    temp = ""; // will reuse these for fragment shader 
-    src = "";
-
-    in_file.open("../fragment_core.glsl");
-
-    if (in_file.is_open()) 
-    {
-        while (std::getline(in_file, temp))
-            src += temp + "\n";     
-    }
-    else 
-    {
-        std::cout << "ERROR::LOADSHADERS::COULD_NOT_OPEN_FRAGMENT_FILE" << "\n";
-        loadSuccess = false; 
-    }
-
-    in_file.close();
-
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    const GLchar* fragSrc = src.c_str();
-    glShaderSource(fragmentShader, 1, &fragSrc, NULL);
-    glCompileShader(fragmentShader);
-
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        std::cout << "ERROR::LOADSHADERS::COULD_NOT_COMPILE_FRAGMENT_SHADER" << "\n";
-        std::cout << infoLog << "\n";
-        loadSuccess = false; 
-    }
-
-    // Program (from outside the function)
-    program = glCreateProgram(); 
-    glAttachShader(program, vertexShader);
-    glAttachShader(program, fragmentShader);
-    glLinkProgram(program); 
-
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success) 
-    {
-        glGetProgramInfoLog(program, 512, NULL, infoLog);
-        std::cout << infoLog;
-        std::cout << "ERROR::LOADSHADERS::COULD_NOT_LINK_PROGRAM" << "\n";
-        loadSuccess = false; 
-
-    }
-
-    // delete shader 
-    glUseProgram(0); // reset program that we are using
-    glDeleteShader(vertexShader); // free up memory
-    glDeleteShader(fragmentShader);
-
-    return loadSuccess; 
-}
-
-int main() 
-{
-
-    // CREATE WINDOW
-    const int WINDOW_WIDTH = 640;
-    const int WINDOW_HEIGHT = 480; 
-    int framebufferWidth = 0;
-    int framebufferHeight = 0;
-
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // this is the version
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5); // this is the version (4.4)
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE); // window can be resized <- frame buffer will change as you resize 
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, GLmajorVer); // this is the version
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, GLminorVer); // this is the version (4.4)
+    glfwWindowHint(GLFW_RESIZABLE, resizable); // window can be resized <- frame buffer will change as you resize 
 
-    // INIT GLFW
-    glfwInit(); // initialize glfw library (must be before create window)
-
-    GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tutorial", NULL, NULL); // 4th param is full screen or window
+    GLFWwindow* window = glfwCreateWindow(width, height, title, NULL, NULL); // 4th param is full screen or window
 
     // glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback); // as soon as window is resized, call this function!
-    glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight); 
-    glViewport(0, 0, framebufferWidth, framebufferHeight); 
+    glfwGetFramebufferSize(window, &fbwidth, &fbHeight); 
+    glViewport(0, 0, fbwidth, fbHeight); 
 
     glfwMakeContextCurrent(window); // IMPORTANT!! 
 
@@ -204,13 +143,76 @@ int main()
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // fill shape with color (other GL_... do other things like fill outline)
 
+    return window;
+}
+
+int main() 
+{
+
+     // INIT GLFW
+    glfwInit(); // initialize glfw library (must be before create window)
+
+    // CREATE WINDOW
+    const int GLmajorVersion = 4;
+    const int GLminorVersion = 5; 
+
+    const int WINDOW_WIDTH = 640;
+    const int WINDOW_HEIGHT = 480; 
+    int framebufferWidth = 0;
+    int framebufferHeight = 0;
+    
+    const char* title = "YOUTUBE_TUTORIAL";
+
+    GLFWwindow* window = createWindow(title, WINDOW_WIDTH, WINDOW_HEIGHT, framebufferWidth, framebufferHeight, GLmajorVersion, GLminorVersion, false);
+
+    // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); 
+    // glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // this is the version
+    // glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5); // this is the version (4.4)
+    // glfwWindowHint(GLFW_RESIZABLE, GL_TRUE); // window can be resized <- frame buffer will change as you resize 
+
+    // // GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tutorial", NULL, NULL); // 4th param is full screen or window
+
+    // // glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback); // as soon as window is resized, call this function!
+    // glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight); 
+    // glViewport(0, 0, framebufferWidth, framebufferHeight); 
+
+    // glfwMakeContextCurrent(window); // IMPORTANT!! 
+
+    // // INIT GLEW (NEEDS WINDOW AND OPENGL CONTEXT)
+    // glewExperimental = GL_TRUE; 
+
+    // if (glewInit() != GLEW_OK) // initialization failed 
+    // {
+    //     std::cout << "ERROR::MAIN.CPP::GLEW_INIT_FAILED" << "\n";
+    //     glfwTerminate();
+    // }
+
+    // OPENGL OPTIONS
+    // glEnable(GL_DEPTH_TEST); // allows us to use z coordinate, zoom away, etc
+
+    // glEnable(GL_CULL_FACE); // able to remove unecessary content
+    // glCullFace(GL_BACK); // remove back of triangle or whatever
+    // glFrontFace(GL_CCW); // front face is vertices that are going counter clockwise
+
+    // glEnable(GL_BLEND); // allow blending of colors
+    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // ??????? 
+
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // fill shape with color (other GL_... do other things like fill outline)
+
+    // Shader test("vertex_core.glsl", "fragment_core.glsl"); // testing class
+
     // Initialize Shader
-    GLuint core_program; 
-    if (!loadShaders(core_program))
-    {
-        std::cout << "ERROR::MAIN.CPP::LOAD_SHADERS_FAILED" << "\n";
-        glfwTerminate();
-    }
+    // GLuint core_program; 
+    Shader core_program(GLmajorVersion, GLminorVersion, "vertex_core.glsl", "fragment_core.glsl");
+    // if (!loadShaders(core_program))
+    // {
+    //     std::cout << "ERROR::MAIN.CPP::LOAD_SHADERS_FAILED" << "\n";
+    //     glfwTerminate();
+    // }
+
+    // MODEL MESH
+    Quad tempQuad;
+    Mesh test(&tempQuad, glm::vec3(0.f), glm::vec3(0.f), glm::vec3(1.f));
 
     // VAO, VBO, EBO (Put object and model data onto the GPU)
     GLuint VAO; // "big box that holds a lot of data"
@@ -240,66 +242,64 @@ int main()
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, texcoord)); // texture
     glEnableVertexAttribArray(2); 
 
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, normal));
+    glEnableVertexAttribArray(3);
+
     // BIND VAO 0
     glBindVertexArray(0); // compiles above codes
 
     // TEXTURE 0
     // Init texture
-    int image_width = 0;
-    int image_height = 0;
-    unsigned char* image = SOIL_load_image("../Images/pusheen.png", &image_width, &image_height, NULL, SOIL_LOAD_RGBA); // load in image
+    Texture texture0("Images/pusheen.png", GL_TEXTURE_2D, 0);
+    Texture texture1("Images/micky.png", GL_TEXTURE_2D, 1);
 
-    GLuint texture0;
-    glGenTextures(1, &texture0); //texture 0 links to index 1 
-    glBindTexture(GL_TEXTURE_2D, texture0);
+    // Material 0
+    Material material0(glm::vec3(0.1f), glm::vec3(1.f), glm::vec3(1.f), texture0.getTextureUnit(), texture1.getTextureUnit());
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // S = x, T = y (IF we run out of texture along X, repeat)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // S = x, T = y (IF we run out of texture along Y, repeat)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR); // How do we wnat texture to increase in size as we zoom in (linear)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // what happens as we zoom out 
+    // internally, the calculations start with the bottom ones (basically right to left)
+    glm::vec3 position(0.f);
+    glm::vec3 rotation(0.f);
+    glm::vec3 scale(1.f); 
 
-    if (image) // if there is an image in here 
-    {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_width, image_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image); // created an open gl texture 
-        glGenerateMipmap(GL_TEXTURE_2D); // takes your image and stores it in several different resolutions for zooming in and out
-    }
-    else 
-    {
-        std::cout << "ERROR::TEXTURE_LOADING_FAILED" << "\n";
-    }
-    
-    glActiveTexture(0); // there is no active texture unit
-    glBindTexture(GL_TEXTURE_2D, 0); // clear the bound textures 
-    SOIL_free_image_data(image); // removes image data
+    glm::mat4 ModelMatrix(1.f); // makes identity matrix
+    ModelMatrix = glm::translate(ModelMatrix, position); // puts in a translation of 0, 0, 0
+    ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.x), glm::vec3(1.f, 0.f, 0.f)); // second input is the angle, third output is axis to rotate arond
+    ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.y), glm::vec3(0.f, 1.f, 0.f)); // second input is the angle, third output is axis to rotate arond
+    ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.z), glm::vec3(0.f, 0.f, 1.f)); // second input is the angle, third output is axis to rotate arond
+    ModelMatrix = glm::scale(ModelMatrix, scale);
 
-    // TEXTURE 1
-    // Init texture
-    int image_width1 = 0;
-    int image_height1 = 0;
-    unsigned char* image1 = SOIL_load_image("../Images/micky.png", &image_width1, &image_height1, NULL, SOIL_LOAD_RGBA); // load in image
+    glm::vec3 camPosition(0.f, 0.f, 1.f);
+    glm::vec3 worldUp(0.f, 1.f, 0.f);
+    glm::vec3 camFront(0.f, 0.f, -1.f);
 
-    GLuint texture1;
-    glGenTextures(1, &texture1); //texture 0 links to index 1 
-    glBindTexture(GL_TEXTURE_2D, texture1);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // S = x, T = y (IF we run out of texture along X, repeat)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // S = x, T = y (IF we run out of texture along Y, repeat)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR); // How do we wnat texture to increase in size as we zoom in (linear)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // what happens as we zoom out 
+    glm::mat4 ViewMatrix(1.f);
+    ViewMatrix = glm::lookAt(camPosition, camPosition + camFront, worldUp);
 
-    if (image1) // if there is an image in here 
-    {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_width1, image_height1, 0, GL_RGBA, GL_UNSIGNED_BYTE, image1); // created an open gl texture 
-        glGenerateMipmap(GL_TEXTURE_2D); // takes your image and stores it in several different resolutions for zooming in and out
-    }
-    else 
-    {
-        std::cout << "ERROR::TEXTURE_LOADING_FAILED" << "\n";
-    }
-    
-    glActiveTexture(0); // there is no active texture unit
-    glBindTexture(GL_TEXTURE_2D, 0); // clear the bound textures 
-    SOIL_free_image_data(image1); // removes image data
+    float fov = 90.f;
+    float nearPlane = 0.1f; // slightly behind our eyes
+    float farPlane = 1000.f; 
+
+    glm::mat4 ProjectionMatrix(1.f);
+    ProjectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(framebufferWidth) / framebufferHeight,
+        nearPlane,
+        farPlane
+    );
+
+
+    // LIGHTS
+    glm::vec3 lightPos0(0.f, 0.f, 1.f);
+
+    // INIT UNIFORMS
+    // core_program.use();
+    // glUseProgram(core_program);
+
+    core_program.setMat4fv(ModelMatrix, "ModelMatrix");
+    core_program.setMat4fv(ViewMatrix, "ViewMatrix");
+    core_program.setMat4fv(ProjectionMatrix, "ProjectionMatrix");
+
+    core_program.setVec3f(lightPos0, "lightPos0");
+    core_program.setVec3f(camPosition, "cameraPos");
 
     // MAIN LOOP
 
@@ -307,6 +307,7 @@ int main()
     {
         // Update input
         glfwPollEvents(); // allows cursor to interact with window
+        updateInput(window, test); // zoom in, out, scale, position
 
         // update
         updateInput(window); // right now if we press escape, close 
@@ -317,18 +318,41 @@ int main()
         glClearColor(0.f, 0.f, 0.f, 1.f); // rgb, alpha (transparency) <-- this is black
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // clear different buffers
 
-        // use a program
-        glUseProgram(core_program);
 
         // update uniforms (you must bind a program before sending a uniform)
-        glUniform1i(glGetUniformLocation(core_program, "texture0"), 0); // send 1 uniform, bind to texture coordinate 0
-        glUniform1i(glGetUniformLocation(core_program, "texture1"), 1); // send 1 uniform, bind to texture coordinate 1
+        core_program.set1i(texture0.getTextureUnit(), "texture0");
+        core_program.set1i(texture1.getTextureUnit(), "texture1");
+        material0.sendToShader(core_program);
+
+        // Move, rotate, scale
+        ModelMatrix = glm::mat4(1.f);
+        ModelMatrix = glm::translate(ModelMatrix, position); // puts in a translation of 0, 0, 0
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.x), glm::vec3(1.f, 0.f, 0.f)); // second input is the angle, third output is axis to rotate arond
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.y), glm::vec3(0.f, 1.f, 0.f)); // second input is the angle, third output is axis to rotate arond
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.z), glm::vec3(0.f, 0.f, 1.f)); // second input is the angle, third output is axis to rotate arond
+        ModelMatrix = glm::scale(ModelMatrix, scale);
+
+        core_program.setMat4fv(ModelMatrix, "ModelMatrix");
+
+        glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);  // aspect ratio is changing
+
+        ProjectionMatrix = glm::perspective(
+            glm::radians(fov), 
+            static_cast<float>(framebufferWidth) / framebufferHeight,
+            nearPlane,
+            farPlane
+        );
+
+        // send in uniforms
+        // core_program.setMat4fv(ViewMatrix, "ViewMatrix");
+        core_program.setMat4fv(ProjectionMatrix, "ProjectionMatrix");
+
+        // use program
+        core_program.use();
 
         //Activate texture
-        glActiveTexture(GL_TEXTURE0); // active the first texture unit
-        glBindTexture(GL_TEXTURE_2D, texture0);
-        glActiveTexture(GL_TEXTURE1); // active the second texture unit
-        glBindTexture(GL_TEXTURE_2D, texture1);
+        texture0.bind();
+        texture1.bind();
 
         // bind vertex array object (contains links to all other object data in the GPU) 
         glBindVertexArray(VAO);
@@ -336,6 +360,7 @@ int main()
         // draw
         // glDrawArrays(GL_TRIANGLES, 0, nrOfVertices); // doesn't use indices
         glDrawElements(GL_TRIANGLES, nrOfIndices, GL_UNSIGNED_INT, 0); // draw all triangles (using indices)
+        test.render(&core_program);
 
         // end draw 
         glfwSwapBuffers(window); // back buffer is being drawn to while front buffer is being shown, this brings the back one to the front
@@ -353,7 +378,7 @@ int main()
     glfwTerminate(); // free up memory 
 
     // Delete program 
-    glDeleteProgram(core_program);
+    // glDeleteProgram(core_program);
 
     return 0;
 }
