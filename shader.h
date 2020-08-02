@@ -54,7 +54,7 @@ private:
         std::string versionNr = std::to_string(this->versionMajor) + std::to_string(this->versionMinor) + "0";
 
         src.replace(src.find("#version"), 12, ("#version " + versionNr)); // replace in the string
-        std::cout << src << "\n";
+        // std::cout << src << "\n";
 
         return src; // contains the source for the shader
     }

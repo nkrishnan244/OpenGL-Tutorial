@@ -24,13 +24,11 @@ private:
     int height;
     int width;
     unsigned int type;
-    GLint textureUnit;
 
 public:
-    Texture(const char* fileName, GLenum type, GLint texture_unit) 
+    Texture(const char* fileName, GLenum type) 
     {
         this->type = type;
-        this->textureUnit = texture_unit;
 
         // TEXTURE 0
         // Init texture
@@ -69,14 +67,10 @@ public:
         return this->id;
     }
 
-    GLint getTextureUnit() const
-    {
-        return this->textureUnit;
-    }
 
-    void bind()
+    void bind(const GLint texture_unit)
     {
-        glActiveTexture(GL_TEXTURE0 + this->textureUnit);
+        glActiveTexture(GL_TEXTURE0 + texture_unit);
         glBindTexture(this->type, this->id);
     }
 
